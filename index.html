@@ -601,23 +601,25 @@ function getDeviceIcon(){
   return '💻';
 }
 
+// Admin only — t6202600@gmail.com
+const ADMIN_EMAIL='t6202600@gmail.com';
+
 async function doLogin(){
-  const email=document.getElementById('login-email').value.trim();
+  const email=document.getElementById('login-email').value.trim().toLowerCase();
   const pass=document.getElementById('login-pass').value;
   const err=document.getElementById('login-err');
   const btn=document.getElementById('login-btn');
   if(!email||!pass){showErr(err,'Please fill in all fields');return;}
+  if(email!==ADMIN_EMAIL){showErr(err,'Access denied. This app is private.');return;}
   btn.disabled=true;btn.textContent='Signing in...';
-  await delay(900);
-  // Simulated auth — in real app: POST to /api/auth/login
+  await delay(700);
   const users=JSON.parse(localStorage.getItem('users')||'{}');
   const user=users[email];
   if(!user||user.pass!==btoa(pass)){
     showErr(err,'Invalid email or password');
     btn.disabled=false;btn.textContent='Sign in';return;
   }
-  if(!user.verified){showErr(err,'Please verify your email first');btn.disabled=false;btn.textContent='Sign in';return;}
-  currentUser={email,name:user.name};
+  currentUser={email,name:user.name,isAdmin:true};
   registerDevice(email);
   loadKeys();
   initApp();
@@ -626,38 +628,23 @@ async function doLogin(){
 
 async function doRegister(){
   const name=document.getElementById('reg-name').value.trim();
-  const email=document.getElementById('reg-email').value.trim();
+  const email=document.getElementById('reg-email').value.trim().toLowerCase();
   const pass=document.getElementById('reg-pass').value;
   const err=document.getElementById('reg-err');
-  const ok=document.getElementById('reg-ok');
   const btn=document.getElementById('reg-btn');
   if(!name||!email||!pass){showErr(err,'Please fill in all fields');return;}
   if(pass.length<8){showErr(err,'Password must be at least 8 characters');return;}
-  if(!email.includes('@')){showErr(err,'Enter a valid email address');return;}
+  if(email!==ADMIN_EMAIL){showErr(err,'Access denied. Only the admin can register.');btn.disabled=false;btn.textContent='Create account';return;}
   btn.disabled=true;btn.textContent='Creating account...';
-  await delay(1200);
+  await delay(800);
   const users=JSON.parse(localStorage.getItem('users')||'{}');
-  if(users[email]){showErr(err,'An account with this email already exists');btn.disabled=false;btn.textContent='Create account';return;}
-  // Store user (in real app: POST to /api/auth/register → sends verify email via Resend)
-  users[email]={name,pass:btoa(pass),verified:false,createdAt:new Date().toISOString()};
+  if(users[email]){showErr(err,'Account already exists. Go to login.');btn.disabled=false;btn.textContent='Create account';return;}
+  users[email]={name,pass:btoa(pass),verified:true,isAdmin:true,createdAt:new Date().toISOString()};
   localStorage.setItem('users',JSON.stringify(users));
-  // Simulate sending verification email
-  simulateSendVerifyEmail(email,name);
-  document.getElementById('verify-sub').textContent=`We sent a verification link to ${email}. Click it to activate your account.`;
-  showScreen('screen-verify');
+  currentUser={email,name,isAdmin:true};
+  registerDevice(email);
+  initApp();
   btn.disabled=false;btn.textContent='Create account';
-}
-
-function simulateSendVerifyEmail(email,name){
-  // In production: POST to /api/auth/send-verify with Resend API
-  // Here we auto-verify after 2 seconds to simulate the flow
-  const users=JSON.parse(localStorage.getItem('users')||'{}');
-  if(users[email]){
-    setTimeout(()=>{
-      users[email].verified=true;
-      localStorage.setItem('users',JSON.stringify(users));
-    },2000);
-  }
 }
 
 function resendVerify(){
@@ -1153,7 +1140,7 @@ window.onload=()=>{
       const s=JSON.parse(savedSession);
       const users=JSON.parse(localStorage.getItem('users')||'{}');
       const user=users[s.email];
-      if(user&&user.verified){
+      if(user&&user.verified&&s.email==='t6202600@gmail.com'){
         currentUser={email:s.email,name:user.name};
         registerDevice(s.email);
         initApp();
